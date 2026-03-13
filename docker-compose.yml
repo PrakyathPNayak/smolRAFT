@@ -1,0 +1,126 @@
+version: "3.8"
+
+networks:
+  raft-net:
+    driver: bridge
+
+services:
+  replica1:
+    build:
+      context: .
+      dockerfile: replica/Dockerfile
+    container_name: replica1
+    hostname: replica1
+    networks:
+      - raft-net
+    ports:
+      - "9001:9001"
+    volumes:
+      - ./replica:/app/replica
+      - ./types:/app/types
+    environment:
+      - NODE_ID=node1
+      - PORT=9001
+      - PEER_ADDRS=replica2:9002,replica3:9003
+      - GATEWAY_ADDR=gateway:8080
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:9001/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  replica2:
+    build:
+      context: .
+      dockerfile: replica/Dockerfile
+    container_name: replica2
+    hostname: replica2
+    networks:
+      - raft-net
+    ports:
+      - "9002:9002"
+    volumes:
+      - ./replica:/app/replica
+      - ./types:/app/types
+    environment:
+      - NODE_ID=node2
+      - PORT=9002
+      - PEER_ADDRS=replica1:9001,replica3:9003
+      - GATEWAY_ADDR=gateway:8080
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:9002/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  replica3:
+    build:
+      context: .
+      dockerfile: replica/Dockerfile
+    container_name: replica3
+    hostname: replica3
+    networks:
+      - raft-net
+    ports:
+      - "9003:9003"
+    volumes:
+      - ./replica:/app/replica
+      - ./types:/app/types
+    environment:
+      - NODE_ID=node3
+      - PORT=9003
+      - PEER_ADDRS=replica1:9001,replica2:9002
+      - GATEWAY_ADDR=gateway:8080
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:9003/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    container_name: gateway
+    hostname: gateway
+    networks:
+      - raft-net
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./gateway:/app/gateway
+      - ./types:/app/types
+    environment:
+      - PORT=8080
+      - REPLICA_ADDRS=replica1:9001,replica2:9002,replica3:9003
+    depends_on:
+      replica1:
+        condition: service_healthy
+      replica2:
+        condition: service_healthy
+      replica3:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8080/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    image: nginx:alpine
+    container_name: frontend
+    hostname: frontend
+    networks:
+      - raft-net
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      gateway:
+        condition: service_healthy

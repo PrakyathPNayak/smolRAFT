@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>smolRAFT — Collaborative Drawing Board</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <canvas id="canvas"></canvas>
+        <div id="hud">
+            <div id="hud-top">
+                <span id="title">smolRAFT</span>
+                <span id="status-indicator" class="disconnected">● DISCONNECTED</span>
+            </div>
+            <div id="hud-bottom">
+                <div id="toolbar">
+                    <label for="color-picker">Color</label>
+                    <input type="color" id="color-picker" value="#00ff41">
+                    <label for="width-slider">Width</label>
+                    <input type="range" id="width-slider" min="1" max="20" value="3">
+                    <button id="clear-btn">Clear Local</button>
+                </div>
+                <div id="stats">
+                    <span id="user-id"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

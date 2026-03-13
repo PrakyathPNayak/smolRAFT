@@ -1,0 +1,16 @@
+# Build artifacts
+**/bin/
+**/tmp/
+
+# Coverage artifacts
+**/coverage.out
+**/coverage.html
+
+# OS/editor
+.DS_Store
+.vscode/
+*.swp
+
+# Env files
+.env
+.env.*
