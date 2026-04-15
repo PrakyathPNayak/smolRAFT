@@ -14,6 +14,8 @@
     const colorPicker = document.getElementById("color-picker");
     const widthSlider = document.getElementById("width-slider");
     const clearBtn = document.getElementById("clear-btn");
+    const undoBtn = document.getElementById("undo-btn");
+    const redoBtn = document.getElementById("redo-btn");
     const userIdEl = document.getElementById("user-id");
 
     // --- State ---
@@ -22,6 +24,12 @@
     let isDrawing = false;
     let currentStroke = null;
     const userId = "user-" + Math.random().toString(36).substring(2, 8);
+
+    // Committed stroke tracking for undo/redo
+    var committedStrokes = [];   // ordered list of {id, points, color, width, userId}
+    var hiddenStrokeIds = {};    // set of stroke IDs hidden by undo
+    var myStrokeIds = [];        // IDs of strokes drawn by this user (for undo order)
+    var myRedoStack = [];        // IDs available for redo
 
     userIdEl.textContent = userId;
 
@@ -33,6 +41,7 @@
         ctx.scale(dpr, dpr);
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
+        redrawAll();
     }
 
     window.addEventListener("resize", resizeCanvas);
@@ -108,6 +117,81 @@
         ctx.stroke();
     }
 
+    function redrawAll() {
+        ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+        for (var i = 0; i < committedStrokes.length; i++) {
+            var s = committedStrokes[i];
+            if (!hiddenStrokeIds[s.id]) {
+                drawFullStroke(s);
+            }
+        }
+    }
+
+    // --- Undo / Redo ---
+    function updateUndoRedoButtons() {
+        // Undo is available if this user has visible strokes
+        var canUndo = false;
+        for (var i = myStrokeIds.length - 1; i >= 0; i--) {
+            if (!hiddenStrokeIds[myStrokeIds[i]]) {
+                canUndo = true;
+                break;
+            }
+        }
+        undoBtn.disabled = !canUndo;
+        redoBtn.disabled = myRedoStack.length === 0;
+    }
+
+    function doUndo() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        // Find last visible stroke by this user
+        var targetId = null;
+        for (var i = myStrokeIds.length - 1; i >= 0; i--) {
+            if (!hiddenStrokeIds[myStrokeIds[i]]) {
+                targetId = myStrokeIds[i];
+                break;
+            }
+        }
+        if (!targetId) return;
+        ws.send(JSON.stringify({
+            id: userId + "-undo-" + Date.now(),
+            type: "undo",
+            targetId: targetId,
+            points: [],
+            color: "",
+            width: 0,
+            userId: userId
+        }));
+    }
+
+    function doRedo() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        if (myRedoStack.length === 0) return;
+        var targetId = myRedoStack[myRedoStack.length - 1];
+        ws.send(JSON.stringify({
+            id: userId + "-redo-" + Date.now(),
+            type: "redo",
+            targetId: targetId,
+            points: [],
+            color: "",
+            width: 0,
+            userId: userId
+        }));
+    }
+
+    undoBtn.addEventListener("click", doUndo);
+    redoBtn.addEventListener("click", doRedo);
+
+    // Keyboard shortcuts
+    document.addEventListener("keydown", function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+            e.preventDefault();
+            doUndo();
+        } else if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+            e.preventDefault();
+            doRedo();
+        }
+    });
+
     // Mouse events
     canvas.addEventListener("mousedown", startStroke);
     canvas.addEventListener("mousemove", moveStroke);
@@ -168,7 +252,41 @@
 
     function handleMessage(msg) {
         if (msg.type === "stroke") {
-            drawFullStroke(msg.payload);
+            var payload = msg.payload;
+            var eventType = payload.type || "stroke";
+
+            if (eventType === "undo") {
+                // Mark target stroke as hidden
+                if (payload.targetId) {
+                    hiddenStrokeIds[payload.targetId] = true;
+                    // If it's our undo, push to redo stack
+                    if (payload.userId === userId) {
+                        myRedoStack.push(payload.targetId);
+                    }
+                    redrawAll();
+                }
+            } else if (eventType === "redo") {
+                // Restore target stroke
+                if (payload.targetId) {
+                    delete hiddenStrokeIds[payload.targetId];
+                    // If it's our redo, remove from redo stack
+                    if (payload.userId === userId) {
+                        var idx = myRedoStack.indexOf(payload.targetId);
+                        if (idx !== -1) myRedoStack.splice(idx, 1);
+                    }
+                    redrawAll();
+                }
+            } else {
+                // Normal stroke
+                committedStrokes.push(payload);
+                if (payload.userId === userId) {
+                    myStrokeIds.push(payload.id);
+                    // New stroke clears redo stack for this user
+                    myRedoStack = [];
+                }
+                drawFullStroke(payload);
+            }
+            updateUndoRedoButtons();
         } else if (msg.type === "error") {
             console.warn("server error:", msg.payload);
         }
@@ -182,6 +300,76 @@
         }, reconnectDelay);
     }
 
+    // --- Live Dashboard ---
+    var dashboardEl = document.getElementById("dashboard");
+    var dashboardNodesEl = document.getElementById("dashboard-nodes");
+    var dashboardToggle = document.getElementById("dashboard-toggle");
+    var dashboardClose = document.getElementById("dashboard-close");
+    var dashboardInterval = null;
+    var REPLICA_ENDPOINTS = [
+        { id: "1", url: "/replica/1/status" },
+        { id: "2", url: "/replica/2/status" },
+        { id: "3", url: "/replica/3/status" },
+        { id: "4", url: "/replica/4/status" }
+    ];
+
+    dashboardToggle.addEventListener("click", function () {
+        dashboardEl.classList.toggle("hidden");
+        if (!dashboardEl.classList.contains("hidden")) {
+            pollDashboard();
+            dashboardInterval = setInterval(pollDashboard, 2000);
+        } else {
+            if (dashboardInterval) clearInterval(dashboardInterval);
+        }
+    });
+
+    dashboardClose.addEventListener("click", function () {
+        dashboardEl.classList.add("hidden");
+        if (dashboardInterval) clearInterval(dashboardInterval);
+    });
+
+    function pollDashboard() {
+        REPLICA_ENDPOINTS.forEach(function (ep) {
+            fetch(ep.url, { signal: AbortSignal.timeout(1500) })
+                .then(function (r) { return r.json(); })
+                .then(function (data) { renderNode(ep.id, data); })
+                .catch(function () { renderNode(ep.id, null); });
+        });
+    }
+
+    function renderNode(replicaNum, data) {
+        var elId = "dash-node-" + replicaNum;
+        var el = document.getElementById(elId);
+        if (!el) {
+            el = document.createElement("div");
+            el.id = elId;
+            el.className = "dash-node";
+            dashboardNodesEl.appendChild(el);
+        }
+
+        if (!data) {
+            el.innerHTML =
+                '<div class="dash-node-header">' +
+                    '<span class="dash-node-id">Replica ' + replicaNum + '</span>' +
+                    '<span class="dash-state DOWN">DOWN</span>' +
+                '</div>';
+            return;
+        }
+
+        el.innerHTML =
+            '<div class="dash-node-header">' +
+                '<span class="dash-node-id">' + (data.nodeId || "node" + replicaNum) + '</span>' +
+                '<span class="dash-state ' + (data.state || "FOLLOWER") + '">' + (data.state || "?") + '</span>' +
+            '</div>' +
+            '<div class="dash-node-stats">' +
+                '<span>T:' + (data.term || 0) + '</span>' +
+                '<span>Log:' + (data.logLength || 0) + '</span>' +
+                '<span>Commit:' + (data.commitIndex || 0) + '</span>' +
+                '<span>Ldr:' + (data.leaderId || "—") + '</span>' +
+            '</div>';
+    }
+
     // --- Boot ---
+    updateUndoRedoButtons();
     connect();
 })();

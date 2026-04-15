@@ -14,7 +14,7 @@ logs:
 	docker-compose logs -f
 
 logs-replicas:
-	docker-compose logs -f replica1 replica2 replica3
+	docker-compose logs -f replica1 replica2 replica3 replica4
 
 logs-gateway:
 	docker-compose logs -f gateway
@@ -71,12 +71,14 @@ status:
 	@echo "=== Replica 1 ===" && curl -s http://localhost:9001/status | python3 -m json.tool 2>/dev/null || echo "DOWN"
 	@echo "=== Replica 2 ===" && curl -s http://localhost:9002/status | python3 -m json.tool 2>/dev/null || echo "DOWN"
 	@echo "=== Replica 3 ===" && curl -s http://localhost:9003/status | python3 -m json.tool 2>/dev/null || echo "DOWN"
+	@echo "=== Replica 4 ===" && curl -s http://localhost:9004/status | python3 -m json.tool 2>/dev/null || echo "DOWN"
 
 health:
 	@curl -sf http://localhost:8080/health && echo " Gateway OK" || echo "Gateway DOWN"
 	@curl -sf http://localhost:9001/health && echo " Replica1 OK" || echo "Replica1 DOWN"
 	@curl -sf http://localhost:9002/health && echo " Replica2 OK" || echo "Replica2 DOWN"
 	@curl -sf http://localhost:9003/health && echo " Replica3 OK" || echo "Replica3 DOWN"
+	@curl -sf http://localhost:9004/health && echo " Replica4 OK" || echo "Replica4 DOWN"
 
 # ── Kill a replica for testing ──────────────────────────────────
 kill-leader:
@@ -86,4 +88,20 @@ kill-leader:
 	docker-compose stop $$LEADER
 
 restart-all:
-	docker-compose restart replica1 replica2 replica3
+	docker-compose restart replica1 replica2 replica3 replica4
+
+# ── Partition Testing (Bonus B1) ────────────────────────────────
+partition-isolate:
+	@bash scripts/partition.sh isolate $(NODE)
+
+partition-heal:
+	@bash scripts/partition.sh heal $(NODE)
+
+partition-heal-all:
+	@bash scripts/partition.sh heal-all
+
+partition-status:
+	@bash scripts/partition.sh status
+
+chaos:
+	@bash scripts/partition.sh chaos $(or $(DURATION),30)

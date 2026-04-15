@@ -183,8 +183,167 @@ body {
     box-shadow: 0 0 8px rgba(255, 65, 65, 0.3);
 }
 
+#undo-btn, #redo-btn {
+    pointer-events: all;
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #00ff41;
+    background: transparent;
+    border: 1px solid #00ff41;
+    border-radius: 2px;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#undo-btn:hover, #redo-btn:hover {
+    background: rgba(0, 255, 65, 0.15);
+    box-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
+}
+
+#undo-btn:disabled, #redo-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+    box-shadow: none;
+}
+
 #stats {
     font-size: 10px;
     opacity: 0.5;
     letter-spacing: 1px;
+    pointer-events: all;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#dashboard-toggle {
+    pointer-events: all;
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #00bfff;
+    background: transparent;
+    border: 1px solid #00bfff;
+    border-radius: 2px;
+    padding: 4px 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#dashboard-toggle:hover {
+    background: rgba(0, 191, 255, 0.15);
+    box-shadow: 0 0 8px rgba(0, 191, 255, 0.3);
+}
+
+/* Live Dashboard Panel */
+#dashboard {
+    position: absolute;
+    top: 50px;
+    right: 12px;
+    width: 280px;
+    background: rgba(13, 17, 23, 0.92);
+    border: 1px solid rgba(0, 191, 255, 0.3);
+    border-radius: 4px;
+    backdrop-filter: blur(6px);
+    font-size: 11px;
+    z-index: 100;
+    pointer-events: all;
+}
+
+#dashboard.hidden {
+    display: none;
+}
+
+#dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(0, 191, 255, 0.2);
+    color: #00bfff;
+    font-weight: bold;
+    letter-spacing: 2px;
+    font-size: 11px;
+}
+
+#dashboard-close {
+    background: none;
+    border: none;
+    color: #00bfff;
+    font-size: 16px;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0 4px;
+}
+
+#dashboard-nodes {
+    padding: 8px 12px;
+}
+
+.dash-node {
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.dash-node:last-child {
+    margin-bottom: 0;
+}
+
+.dash-node-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.dash-node-id {
+    font-weight: bold;
+    color: #c9d1d9;
+    letter-spacing: 1px;
+}
+
+.dash-state {
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.dash-state.LEADER {
+    color: #0a0a0a;
+    background: #00ff41;
+}
+
+.dash-state.FOLLOWER {
+    color: #c9d1d9;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.dash-state.CANDIDATE {
+    color: #0a0a0a;
+    background: #ffa500;
+}
+
+.dash-state.DOWN {
+    color: #ff4141;
+    background: rgba(255, 65, 65, 0.15);
+}
+
+.dash-node-stats {
+    display: flex;
+    gap: 12px;
+    color: #8b949e;
+    font-size: 10px;
+}
+
+.dash-node-stats span {
+    letter-spacing: 0.5px;
 }

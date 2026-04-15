@@ -21,7 +21,7 @@ services:
     environment:
       - NODE_ID=node1
       - PORT=9001
-      - PEER_ADDRS=replica2:9002,replica3:9003
+      - PEER_ADDRS=replica2:9002,replica3:9003,replica4:9004
       - GATEWAY_ADDR=gateway:8080
     healthcheck:
       test: [ "CMD", "wget", "--spider", "-q", "http://localhost:9001/health" ]
@@ -46,7 +46,7 @@ services:
     environment:
       - NODE_ID=node2
       - PORT=9002
-      - PEER_ADDRS=replica1:9001,replica3:9003
+      - PEER_ADDRS=replica1:9001,replica3:9003,replica4:9004
       - GATEWAY_ADDR=gateway:8080
     healthcheck:
       test: [ "CMD", "wget", "--spider", "-q", "http://localhost:9002/health" ]
@@ -71,10 +71,35 @@ services:
     environment:
       - NODE_ID=node3
       - PORT=9003
-      - PEER_ADDRS=replica1:9001,replica2:9002
+      - PEER_ADDRS=replica1:9001,replica2:9002,replica4:9004
       - GATEWAY_ADDR=gateway:8080
     healthcheck:
       test: [ "CMD", "wget", "--spider", "-q", "http://localhost:9003/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  replica4:
+    build:
+      context: .
+      dockerfile: replica/Dockerfile
+    container_name: replica4
+    hostname: replica4
+    networks:
+      - raft-net
+    ports:
+      - "9004:9004"
+    volumes:
+      - ./replica:/app/replica
+      - ./types:/app/types
+    environment:
+      - NODE_ID=node4
+      - PORT=9004
+      - PEER_ADDRS=replica1:9001,replica2:9002,replica3:9003
+      - GATEWAY_ADDR=gateway:8080
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:9004/health" ]
       interval: 5s
       timeout: 3s
       retries: 3
@@ -95,13 +120,15 @@ services:
       - ./types:/app/types
     environment:
       - PORT=8080
-      - REPLICA_ADDRS=replica1:9001,replica2:9002,replica3:9003
+      - REPLICA_ADDRS=replica1:9001,replica2:9002,replica3:9003,replica4:9004
     depends_on:
       replica1:
         condition: service_healthy
       replica2:
         condition: service_healthy
       replica3:
+        condition: service_healthy
+      replica4:
         condition: service_healthy
     healthcheck:
       test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8080/health" ]

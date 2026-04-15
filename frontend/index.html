@@ -20,12 +20,23 @@
                     <input type="color" id="color-picker" value="#00ff41">
                     <label for="width-slider">Width</label>
                     <input type="range" id="width-slider" min="1" max="20" value="3">
+                    <button id="undo-btn" title="Undo (Ctrl+Z)">Undo</button>
+                    <button id="redo-btn" title="Redo (Ctrl+Y)">Redo</button>
                     <button id="clear-btn">Clear Local</button>
                 </div>
                 <div id="stats">
                     <span id="user-id"></span>
+                    <button id="dashboard-toggle">Dashboard</button>
                 </div>
             </div>
+        </div>
+        <!-- Live RAFT Dashboard -->
+        <div id="dashboard" class="hidden">
+            <div id="dashboard-header">
+                <span>RAFT CLUSTER</span>
+                <button id="dashboard-close">&times;</button>
+            </div>
+            <div id="dashboard-nodes"></div>
         </div>
     </div>
     <script src="app.js"></script>

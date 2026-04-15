@@ -28,9 +28,16 @@ type LogEntry struct {
 
 // StrokeEvent represents a single drawing stroke from a client.
 // It contains the coordinates and visual properties needed to render the stroke.
+// For undo/redo operations, Type is set to "undo" or "redo" and TargetID
+// identifies the stroke being undone or redone.
 type StrokeEvent struct {
 	// ID is a unique identifier for this stroke (client-generated UUID).
 	ID string `json:"id"`
+	// Type is the event kind: "" or "stroke" for normal strokes,
+	// "undo" to hide a previous stroke, "redo" to restore it.
+	Type string `json:"type,omitempty"`
+	// TargetID is the ID of the stroke to undo/redo (only set when Type is "undo" or "redo").
+	TargetID string `json:"targetId,omitempty"`
 	// Points contains the ordered sequence of coordinates in this stroke.
 	Points []Point `json:"points"`
 	// Color is the stroke color as a CSS color string (e.g., "#ff0000").
