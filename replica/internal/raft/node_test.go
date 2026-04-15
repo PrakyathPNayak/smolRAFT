@@ -73,6 +73,10 @@ func (m *mockRPCClient) NotifyCommit(_ context.Context, _ string, notification t
 	return nil
 }
 
+func (m *mockRPCClient) FetchSyncLog(_ context.Context, _ string, _ int) ([]types.LogEntry, error) {
+	return nil, nil
+}
+
 func makeTestNode(id string, peers []string) (*Node, *mockRPCClient) {
 	rpc := newMockRPC()
 	cfg := Config{

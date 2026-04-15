@@ -204,9 +204,18 @@
     canvas.addEventListener("touchend", endStroke, { passive: false });
     canvas.addEventListener("touchcancel", endStroke, { passive: false });
 
-    // Clear button
+    // Clear button — replicated through RAFT so all peers see the clear
     clearBtn.addEventListener("click", function () {
-        ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify({
+            id: userId + "-clear-" + Date.now(),
+            type: "clear",
+            targetId: "",
+            points: [],
+            color: "",
+            width: 0,
+            userId: userId
+        }));
     });
 
     // --- WebSocket ---
@@ -276,6 +285,13 @@
                     }
                     redrawAll();
                 }
+            } else if (eventType === "clear") {
+                // Clear all strokes globally
+                committedStrokes = [];
+                hiddenStrokeIds = {};
+                myStrokeIds = [];
+                myRedoStack = [];
+                ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
             } else {
                 // Normal stroke
                 committedStrokes.push(payload);
@@ -350,22 +366,22 @@
         if (!data) {
             el.innerHTML =
                 '<div class="dash-node-header">' +
-                    '<span class="dash-node-id">Replica ' + replicaNum + '</span>' +
-                    '<span class="dash-state DOWN">DOWN</span>' +
+                '<span class="dash-node-id">Replica ' + replicaNum + '</span>' +
+                '<span class="dash-state DOWN">DOWN</span>' +
                 '</div>';
             return;
         }
 
         el.innerHTML =
             '<div class="dash-node-header">' +
-                '<span class="dash-node-id">' + (data.nodeId || "node" + replicaNum) + '</span>' +
-                '<span class="dash-state ' + (data.state || "FOLLOWER") + '">' + (data.state || "?") + '</span>' +
+            '<span class="dash-node-id">' + (data.nodeId || "node" + replicaNum) + '</span>' +
+            '<span class="dash-state ' + (data.state || "FOLLOWER") + '">' + (data.state || "?") + '</span>' +
             '</div>' +
             '<div class="dash-node-stats">' +
-                '<span>T:' + (data.term || 0) + '</span>' +
-                '<span>Log:' + (data.logLength || 0) + '</span>' +
-                '<span>Commit:' + (data.commitIndex || 0) + '</span>' +
-                '<span>Ldr:' + (data.leaderId || "—") + '</span>' +
+            '<span>T:' + (data.term || 0) + '</span>' +
+            '<span>Log:' + (data.logLength || 0) + '</span>' +
+            '<span>Commit:' + (data.commitIndex || 0) + '</span>' +
+            '<span>Ldr:' + (data.leaderId || "—") + '</span>' +
             '</div>';
     }
 

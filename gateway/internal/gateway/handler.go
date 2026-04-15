@@ -72,6 +72,9 @@ func (h *Handler) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 	go h.writePump(client)
 	go h.readPump(client)
+
+	// Replay committed canvas history so new clients see the current board state.
+	go h.replayHistory(client)
 }
 
 // HandleCommit receives committed stroke notifications from replica leaders.
@@ -213,6 +216,51 @@ func (h *Handler) writePump(client *Client) {
 			if err := client.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
+		}
+	}
+}
+
+// replayHistory fetches all committed strokes from the current leader via
+// /sync-log and sends them to the newly connected client so it sees the
+// full canvas state immediately.
+func (h *Handler) replayHistory(client *Client) {
+	leaderAddr := h.tracker.LeaderAddr()
+	if leaderAddr == "" {
+		h.tracker.PollOnce(context.Background())
+		leaderAddr = h.tracker.LeaderAddr()
+	}
+	if leaderAddr == "" {
+		return
+	}
+
+	url := fmt.Sprintf("http://%s/sync-log?from=1", leaderAddr)
+	resp, err := h.client.Get(url)
+	if err != nil {
+		h.logger.Warn("sync-log fetch failed on client connect", "error", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	var entries []types.LogEntry
+	if err := json.NewDecoder(resp.Body).Decode(&entries); err != nil {
+		h.logger.Warn("sync-log decode failed", "error", err)
+		return
+	}
+
+	for _, entry := range entries {
+		msg := types.WSMessage{
+			Type:    "stroke",
+			Payload: entry.Stroke,
+		}
+		data, err := json.Marshal(msg)
+		if err != nil {
+			continue
+		}
+		select {
+		case client.send <- data:
+		default:
+			// Client buffer full; stop replaying to avoid blocking
+			return
 		}
 	}
 }

@@ -25,6 +25,10 @@ type RPCClient interface {
 
 	// NotifyCommit sends a commit notification to the gateway.
 	NotifyCommit(ctx context.Context, addr string, notification types.CommitNotification) error
+
+	// FetchSyncLog retrieves committed log entries from the given index on a peer.
+	// Used by the leader to bulk catch-up a lagging follower.
+	FetchSyncLog(ctx context.Context, addr string, fromIndex int) ([]types.LogEntry, error)
 }
 
 // HTTPRPCClient implements RPCClient using HTTP/JSON.
@@ -59,6 +63,28 @@ func (c *HTTPRPCClient) AppendEntries(ctx context.Context, addr string, req type
 // NotifyCommit sends a commit notification to the gateway via HTTP POST.
 func (c *HTTPRPCClient) NotifyCommit(ctx context.Context, addr string, notification types.CommitNotification) error {
 	return c.doPost(ctx, fmt.Sprintf("http://%s/commit", addr), notification, nil)
+}
+
+// FetchSyncLog retrieves committed log entries from addr starting at fromIndex.
+func (c *HTTPRPCClient) FetchSyncLog(ctx context.Context, addr string, fromIndex int) ([]types.LogEntry, error) {
+	url := fmt.Sprintf("http://%s/sync-log?from=%d", addr, fromIndex)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request to %s: %w", url, err)
+	}
+	httpResp, err := c.client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("send request to %s: %w", url, err)
+	}
+	defer httpResp.Body.Close()
+	if httpResp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status from %s: %d", url, httpResp.StatusCode)
+	}
+	var entries []types.LogEntry
+	if err := json.NewDecoder(httpResp.Body).Decode(&entries); err != nil {
+		return nil, fmt.Errorf("decode response from %s: %w", url, err)
+	}
+	return entries, nil
 }
 
 // doPost performs an HTTP POST with JSON request/response bodies.

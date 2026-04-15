@@ -42,13 +42,11 @@ body {
     width: 100%;
     height: 100%;
     pointer-events: none;
-    background: repeating-linear-gradient(
-        0deg,
-        rgba(0, 0, 0, 0.1) 0px,
-        rgba(0, 0, 0, 0.1) 1px,
-        transparent 1px,
-        transparent 3px
-    );
+    background: repeating-linear-gradient(0deg,
+            rgba(0, 0, 0, 0.1) 0px,
+            rgba(0, 0, 0, 0.1) 1px,
+            transparent 1px,
+            transparent 3px);
 }
 
 #hud {
@@ -110,8 +108,15 @@ body {
 }
 
 @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
 }
 
 #hud-bottom {
@@ -183,7 +188,8 @@ body {
     box-shadow: 0 0 8px rgba(255, 65, 65, 0.3);
 }
 
-#undo-btn, #redo-btn {
+#undo-btn,
+#redo-btn {
     pointer-events: all;
     font-family: inherit;
     font-size: 10px;
@@ -198,12 +204,14 @@ body {
     transition: all 0.2s ease;
 }
 
-#undo-btn:hover, #redo-btn:hover {
+#undo-btn:hover,
+#redo-btn:hover {
     background: rgba(0, 255, 65, 0.15);
     box-shadow: 0 0 8px rgba(0, 255, 65, 0.3);
 }
 
-#undo-btn:disabled, #redo-btn:disabled {
+#undo-btn:disabled,
+#redo-btn:disabled {
     opacity: 0.3;
     cursor: default;
     box-shadow: none;

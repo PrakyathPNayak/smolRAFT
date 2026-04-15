@@ -80,6 +80,11 @@ func runCommitNotifier(ctx context.Context, node *raft.Node, rpc raft.RPCClient,
 			if !ok {
 				return
 			}
+			// Only the leader notifies the gateway; all nodes receive commits
+			// via RAFT but only one should forward to avoid duplicate broadcasts.
+			if !node.IsLeader() {
+				continue
+			}
 			notification := types.CommitNotification{
 				Stroke: entry.Stroke,
 				Index:  entry.Index,
